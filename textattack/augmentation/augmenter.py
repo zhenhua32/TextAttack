@@ -113,24 +113,30 @@ class Augmenter:
         attacked_text = AttackedText(text)
         original_text = attacked_text
         all_transformed_texts = set()
+        # 交换的单词数
         num_words_to_swap = max(
             int(self.pct_words_to_swap * len(attacked_text.words)), 1
         )
         augmentation_results = []
+        # 生成次数
         for _ in range(self.transformations_per_example):
             current_text = attacked_text
+            # 当前交换的单词数
             words_swapped = len(current_text.attack_attrs["modified_indices"])
 
             while words_swapped < num_words_to_swap:
+                # 进行转换
                 transformed_texts = self.transformation(
                     current_text, self.pre_transformation_constraints
                 )
 
+                # 只要新的数据
                 # Get rid of transformations we already have
                 transformed_texts = [
                     t for t in transformed_texts if t not in all_transformed_texts
                 ]
 
+                # 过滤掉不符合约束的
                 # Filter out transformations that don't match the constraints.
                 transformed_texts = self._filter_transformations(
                     transformed_texts, current_text, original_text
@@ -145,21 +151,24 @@ class Augmenter:
                     ready_texts = [
                         text
                         for text in transformed_texts
+                        # 要求大于等于 num_words_to_swap, 看起来 num_words_to_swap 是最低要求
                         if len(text.attack_attrs["modified_indices"])
                         >= num_words_to_swap
                     ]
                     for text in ready_texts:
                         all_transformed_texts.add(text)
+                    # 剩余的
                     unfinished_texts = [
                         text for text in transformed_texts if text not in ready_texts
                     ]
-
+                    # 如果有剩余的, 就随机选一个
                     if len(unfinished_texts):
                         current_text = random.choice(unfinished_texts)
                     else:
                         # no need for further augmentations if all of transformed_texts meet `num_words_to_swap`
                         break
                 else:
+                    # 随机选一个
                     current_text = random.choice(transformed_texts)
 
                 # update words_swapped based on modified indices
@@ -170,6 +179,7 @@ class Augmenter:
 
             all_transformed_texts.add(current_text)
 
+            # 样本足够时就跳出循环了
             # when with fast_augment, terminate early if there're enough successful augmentations
             if (
                 self.fast_augment
@@ -188,6 +198,7 @@ class Augmenter:
                 augmentation_results.append(
                     AugmentationResult(original_text, transformed_texts)
                 )
+            # 困惑度
             perplexity_stats = Perplexity().calculate(augmentation_results)
             use_stats = USEMetric().calculate(augmentation_results)
             return perturbed_texts, perplexity_stats, use_stats

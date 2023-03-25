@@ -197,10 +197,15 @@ class CLAREAugmenter(Augmenter):
     CLARE builds on a pre-trained masked language model and modifies the inputs in a contextaware manner.
     We propose three contextualized perturbations, Replace, Insert and Merge, allowing for generating outputs
     of varied lengths.
+    TODO: 我们的目标是用在中文的数据集上
     """
 
     def __init__(
-        self, model="distilroberta-base", tokenizer="distilroberta-base", **kwargs
+        self,
+        model="distilroberta-base",
+        tokenizer="distilroberta-base",
+        max_length=64,
+        **kwargs
     ):
         import transformers
 
@@ -214,30 +219,35 @@ class CLAREAugmenter(Augmenter):
         shared_masked_lm = transformers.AutoModelForCausalLM.from_pretrained(model)
         shared_tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer)
 
+        # 组合了三种方法
         transformation = CompositeTransformation(
             [
                 WordSwapMaskedLM(
                     method="bae",
                     masked_language_model=shared_masked_lm,
                     tokenizer=shared_tokenizer,
+                    max_length=max_length,
                     max_candidates=50,
                     min_confidence=5e-4,
                 ),
                 WordInsertionMaskedLM(
                     masked_language_model=shared_masked_lm,
                     tokenizer=shared_tokenizer,
+                    max_length=max_length,
                     max_candidates=50,
                     min_confidence=0.0,
                 ),
                 WordMergeMaskedLM(
                     masked_language_model=shared_masked_lm,
                     tokenizer=shared_tokenizer,
+                    max_length=max_length,
                     max_candidates=50,
                     min_confidence=5e-3,
                 ),
             ]
         )
 
+        # 添加了一个新的约束
         use_constraint = UniversalSentenceEncoder(
             threshold=0.7,
             metric="cosine",

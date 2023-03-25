@@ -13,6 +13,7 @@ from textattack.transformations import Transformation
 class WordSwap(Transformation):
     """An abstract class that takes a sentence and transforms it by replacing
     some of its words.
+    单词替换抽象类，接受一个句子并通过替换其中的一些单词来转换它。
 
     letters_to_insert (string): letters allowed for insertion into words
     (used by some char-based transformations)
@@ -21,6 +22,7 @@ class WordSwap(Transformation):
     def __init__(self, letters_to_insert=None):
         self.letters_to_insert = letters_to_insert
         if not self.letters_to_insert:
+            # 默认是小写字母和大写字母, 这会不会是不出中文的原因?
             self.letters_to_insert = string.ascii_letters
 
     def _get_replacement_words(self, word):
@@ -48,6 +50,7 @@ class WordSwap(Transformation):
             for r in replacement_words:
                 if r == word_to_replace:
                     continue
+                # 替换单词
                 transformed_texts_idx.append(current_text.replace_word_at_index(i, r))
             transformed_texts.extend(transformed_texts_idx)
 

@@ -11,7 +11,9 @@ from textattack.shared.utils import ReprMixin
 
 class Transformation(ReprMixin, ABC):
     """An abstract class for transforming a sequence of text to produce a
-    potential adversarial example."""
+    potential adversarial example.
+    生成潜在的对抗样本的文本序列的抽象类
+    """
 
     def __call__(
         self,
@@ -49,18 +51,20 @@ class Transformation(ReprMixin, ABC):
             )
 
         for constraint in pre_transformation_constraints:
+            # 取交集
             indices_to_modify = indices_to_modify & constraint(current_text, self)
 
         if return_indices:
             return indices_to_modify
 
+        # 生成变换后的文本, 核心函数是 _get_transformations
         transformed_texts = self._get_transformations(current_text, indices_to_modify)
         for text in transformed_texts:
             text.attack_attrs["last_transformation"] = self
         return transformed_texts
 
     @abstractmethod
-    def _get_transformations(self, current_text, indices_to_modify):
+    def _get_transformations(self, current_text, indices_to_modify: set):
         """Returns a list of all possible transformations for ``current_text``,
         only modifying ``indices_to_modify``. Must be overridden by specific
         transformations.

@@ -37,6 +37,7 @@ class WordSwapMaskedLM(WordSwap):
         method (str): the name of replacement method (e.g. "bae", "bert-attack")
         masked_language_model (Union[str|transformers.AutoModelForMaskedLM]): Either the name of pretrained masked language model from `transformers` model hub
             or the actual model. Default is `bert-base-uncased`.
+        TODO: 这个 tokenizer 推断似乎没效果, 必须同时提供
         tokenizer (obj): The tokenizer of the corresponding model. If you passed in name of a pretrained model for `masked_language_model`,
             you can skip this argument as the correct tokenizer can be infered from the name. However, if you're passing the actual model, you must
             provide a tokenizer.
@@ -69,6 +70,7 @@ class WordSwapMaskedLM(WordSwap):
         self.min_confidence = min_confidence
         self.batch_size = batch_size
 
+        # 初始化 _language_model 和 _lm_tokenizer
         if isinstance(masked_language_model, str):
             self._language_model = AutoModelForMaskedLM.from_pretrained(
                 masked_language_model
@@ -250,6 +252,10 @@ class WordSwapMaskedLM(WordSwap):
             return top_replacements
 
     def _get_transformations(self, current_text, indices_to_modify):
+        """
+        核心是这里
+
+        """
         indices_to_modify = list(indices_to_modify)
         if self.method == "bert-attack":
             current_inputs = self._encode_text(current_text.text)
@@ -280,6 +286,7 @@ class WordSwapMaskedLM(WordSwap):
             return transformed_texts
 
         elif self.method == "bae":
+            # 就看这个方法好了, 这是默认的方法
             replacement_words = self._bae_replacement_words(
                 current_text, indices_to_modify
             )
@@ -290,8 +297,11 @@ class WordSwapMaskedLM(WordSwap):
                 for word in replacement_words[i]:
                     word = word.strip("Ġ")
                     if (
+                        # 不要相同的词
                         word != word_at_index
-                        and re.search("[a-zA-Z]", word)
+                        # 必须是字母
+                        # and re.search("[a-zA-Z]", word)
+                        # 必须是一个单词
                         and len(utils.words_from_text(word)) == 1
                     ):
                         transformed_texts.append(
