@@ -34,6 +34,9 @@ class CompositeTransformation(Transformation):
         )
 
     def __call__(self, *args, **kwargs):
+        """
+        使用所有的变换，返回所有的变换结果
+        """
         new_attacked_texts = set()
         for transformation in self.transformations:
             new_attacked_texts.update(transformation(*args, **kwargs))

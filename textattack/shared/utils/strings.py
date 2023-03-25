@@ -2,8 +2,12 @@ import re
 import string
 
 import flair
+from transformers.models.bert.tokenization_bert import BasicTokenizer
 
 from .importing import LazyLoader
+
+
+basic_tokenizer = BasicTokenizer(do_lower_case=False)
 
 
 def has_letter(word):
@@ -30,7 +34,9 @@ def add_indent(s_, numSpaces):
 def words_from_text(s, words_to_ignore=[]):
     """Lowercases a string, removes all non-alphanumeric characters, and splits
     into words."""
-    s = " ".join(s.split())
+    # 支持下中文分词, 按字分隔
+    s = " ".join(basic_tokenizer.tokenize(s))
+    # s = " ".join(s.split())
 
     homos = """˗৭Ȣ𝟕бƼᏎƷᒿlO`ɑЬϲԁе𝚏ɡհіϳ𝒌ⅼｍոорԛⲅѕ𝚝սѵԝ×уᴢ"""
     exceptions = """'-_*@"""
