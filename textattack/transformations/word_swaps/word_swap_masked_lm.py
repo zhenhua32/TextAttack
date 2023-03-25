@@ -96,6 +96,7 @@ class WordSwapMaskedLM(WordSwap):
         values are ``torch.Tensor``s. Moves tensors to the same device
         as the language model.
         """
+        # 调用分词器
         encoding = self._lm_tokenizer(
             text,
             max_length=self.max_length,
@@ -105,16 +106,19 @@ class WordSwapMaskedLM(WordSwap):
         )
         return encoding.to(utils.device)
 
-    def _bae_replacement_words(self, current_text, indices_to_modify):
+    def _bae_replacement_words(self, current_text, indices_to_modify: list):
         """Get replacement words for the word we want to replace using BAE
         method.
+        核心思想就是通过 掩码 来预测 掩码 位置的词
 
         Args:
             current_text (AttackedText): Text we want to get replacements for.
             index (int): index of word we want to replace
         """
+        # 生产一堆 掩码 文本, 数量是 indices_to_modify 的长度
         masked_texts = []
         for index in indices_to_modify:
+            # 替换成 掩码 文本
             masked_text = current_text.replace_word_at_index(
                 index, self._lm_tokenizer.mask_token
             )
@@ -124,12 +128,15 @@ class WordSwapMaskedLM(WordSwap):
         # 2-D list where for each index to modify we have a list of replacement words
         replacement_words = []
         while i < len(masked_texts):
+            # 构建了 batch_size 个输入
             inputs = self._encode_text(masked_texts[i : i + self.batch_size])
             ids = inputs["input_ids"].tolist()
             with torch.no_grad():
+                # 直接调用模型
                 preds = self._language_model(**inputs)[0]
 
             for j in range(len(ids)):
+                # 需要看看 masked_index 是否存在
                 try:
                     # Need try-except b/c mask-token located past max_length might be truncated by tokenizer
                     masked_index = ids[j].index(self._lm_tokenizer.mask_token_id)
@@ -137,13 +144,17 @@ class WordSwapMaskedLM(WordSwap):
                     replacement_words.append([])
                     continue
 
+                # 当前的掩码的 logits
                 mask_token_logits = preds[j, masked_index]
+                # 概率
                 mask_token_probs = torch.softmax(mask_token_logits, dim=0)
+                # 概率降序
                 ranked_indices = torch.argsort(mask_token_probs, descending=True)
                 top_words = []
                 for _id in ranked_indices:
                     _id = _id.item()
                     word = self._lm_tokenizer.convert_ids_to_tokens(_id)
+                    # 检查是否是子词
                     if utils.check_if_subword(
                         word,
                         self._language_model.config.model_type,
@@ -159,6 +170,7 @@ class WordSwapMaskedLM(WordSwap):
                     ):
                         top_words.append(word)
 
+                    # 如果已经达到了最大的候选词数 或者 概率小于最小阈值, 就停止
                     if (
                         len(top_words) >= self.max_candidates
                         or mask_token_probs[_id] < self.min_confidence
@@ -167,6 +179,7 @@ class WordSwapMaskedLM(WordSwap):
 
                 replacement_words.append(top_words)
 
+            # 原来是每次处理 batch_size 个
             i += self.batch_size
 
         return replacement_words
@@ -254,7 +267,6 @@ class WordSwapMaskedLM(WordSwap):
     def _get_transformations(self, current_text, indices_to_modify):
         """
         核心是这里
-
         """
         indices_to_modify = list(indices_to_modify)
         if self.method == "bert-attack":
