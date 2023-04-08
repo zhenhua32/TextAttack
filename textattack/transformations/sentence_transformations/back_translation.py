@@ -15,7 +15,8 @@ from .sentence_transformation import SentenceTransformation
 
 
 class BackTranslation(SentenceTransformation):
-    """A type of sentence level transformation that takes in a text input,
+    """回译
+    A type of sentence level transformation that takes in a text input,
     translates it into target language and translates it back to source
     language.
 
@@ -58,7 +59,11 @@ class BackTranslation(SentenceTransformation):
         self.src_tokenizer = MarianTokenizer.from_pretrained(src_model)
         self.chained_back_translation = chained_back_translation
 
-    def translate(self, input, model, tokenizer, lang="es"):
+    def translate(self, input: list, model: MarianMTModel, tokenizer: MarianTokenizer, lang="es"):
+        """
+        执行单次翻译
+        input: 是个 list, 但是只会用到第一个元素
+        """
         # change the text to model's format
         src_texts = []
         if lang == "en":
@@ -80,6 +85,7 @@ class BackTranslation(SentenceTransformation):
         transformed_texts = []
         current_text = current_text.text
 
+        # 如果 chained_back_translation 不为 0, 则进行多次回译
         # to perform chained back translation, a random list of target languages are selected from the provided model
         if self.chained_back_translation:
             list_of_target_lang = random.sample(
@@ -87,6 +93,7 @@ class BackTranslation(SentenceTransformation):
                 self.chained_back_translation,
             )
             for target_lang in list_of_target_lang:
+                # 先使用 target_model 翻译成目标语言, 再使用 src_model 翻译回源语言
                 target_language_text = self.translate(
                     [current_text],
                     self.target_model,
@@ -102,6 +109,7 @@ class BackTranslation(SentenceTransformation):
                 current_text = src_language_text[0]
             return [AttackedText(current_text)]
 
+        # 只进行一次回译
         # translates source to target language and back to source language (single back translation)
         target_language_text = self.translate(
             [current_text], self.target_model, self.target_tokenizer, self.target_lang

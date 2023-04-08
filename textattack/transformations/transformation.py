@@ -50,6 +50,7 @@ class Transformation(ReprMixin, ABC):
                 current_text.convert_from_original_idxs(indices_to_modify)
             )
 
+        # 使用所有的约束条件
         for constraint in pre_transformation_constraints:
             # 取交集
             indices_to_modify = indices_to_modify & constraint(current_text, self)

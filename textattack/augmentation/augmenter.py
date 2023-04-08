@@ -108,8 +108,11 @@ class Augmenter:
         return transformed_texts
 
     def augment(self, text):
-        """Returns all possible augmentations of ``text`` according to
-        ``self.transformation``."""
+        """
+        主要的函数，返回所有可能的增强
+        Returns all possible augmentations of ``text`` according to
+        ``self.transformation``.
+        """
         attacked_text = AttackedText(text)
         original_text = attacked_text
         all_transformed_texts = set()
