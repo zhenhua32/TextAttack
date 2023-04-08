@@ -7,6 +7,7 @@ BackTranslation class
 
 import random
 
+import torch
 from transformers import MarianMTModel, MarianTokenizer
 
 from textattack.shared import AttackedText
@@ -15,7 +16,7 @@ from .sentence_transformation import SentenceTransformation
 
 
 class BackTranslation(SentenceTransformation):
-    """回译
+    """回译, 需要支持 GPU 加速, 不然太慢了
     A type of sentence level transformation that takes in a text input,
     translates it into target language and translates it back to source
     language.
@@ -50,6 +51,7 @@ class BackTranslation(SentenceTransformation):
         src_model="Helsinki-NLP/opus-mt-ROMANCE-en",
         target_model="Helsinki-NLP/opus-mt-en-ROMANCE",
         chained_back_translation=0,
+        device=None,
     ):
         self.src_lang = src_lang
         self.target_lang = target_lang
@@ -58,6 +60,14 @@ class BackTranslation(SentenceTransformation):
         self.src_model = MarianMTModel.from_pretrained(src_model)
         self.src_tokenizer = MarianTokenizer.from_pretrained(src_model)
         self.chained_back_translation = chained_back_translation
+
+        # GPU 加速
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = device
+        self.target_model.to(self.device)
+        self.src_model.to(self.device)
 
     def translate(self, input: list, model: MarianMTModel, tokenizer: MarianTokenizer, lang="es"):
         """
@@ -74,10 +84,12 @@ class BackTranslation(SentenceTransformation):
             src_texts.append(lang + input[0])
 
         # tokenize the input
-        encoded_input = tokenizer.prepare_seq2seq_batch(src_texts, return_tensors="pt")
+        encoded_input = tokenizer(src_texts, return_tensors="pt").to(self.device)
 
         # translate the input
-        translated = model.generate(**encoded_input)
+        # 直接根据长度, 来个动态的好了
+        max_new_tokens = min(512, encoded_input["input_ids"].shape[1] * 2)
+        translated = model.generate(**encoded_input, max_new_tokens=max_new_tokens)
         translated_input = tokenizer.batch_decode(translated, skip_special_tokens=True)
         return translated_input
 
@@ -85,6 +97,7 @@ class BackTranslation(SentenceTransformation):
         transformed_texts = []
         current_text = current_text.text
 
+        # 这个有条件限制的, 需要 supported_language_codes 大于 chained_back_translation
         # 如果 chained_back_translation 不为 0, 则进行多次回译
         # to perform chained back translation, a random list of target languages are selected from the provided model
         if self.chained_back_translation:
