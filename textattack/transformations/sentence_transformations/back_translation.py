@@ -71,20 +71,21 @@ class BackTranslation(SentenceTransformation):
 
     def translate(self, input: list, model: MarianMTModel, tokenizer: MarianTokenizer, lang="es"):
         """
-        执行单次翻译
+        执行批量翻译
         input: 是个 list, 但是只会用到第一个元素
         """
         # change the text to model's format
         src_texts = []
-        if lang == "en":
-            src_texts.append(input[0])
-        else:
-            if ">>" and "<<" not in lang:
-                lang = ">>" + lang + "<< "
-            src_texts.append(lang + input[0])
+        for text in input:
+            if lang == "en":
+                src_texts.append(text)
+            else:
+                if ">>" and "<<" not in lang:
+                    lang = ">>" + lang + "<< "
+                src_texts.append(lang + text)
 
         # tokenize the input
-        encoded_input = tokenizer(src_texts, return_tensors="pt").to(self.device)
+        encoded_input = tokenizer(src_texts, padding=True, return_tensors="pt").to(self.device)
 
         # translate the input
         # 直接根据长度, 来个动态的好了
@@ -94,6 +95,9 @@ class BackTranslation(SentenceTransformation):
         return translated_input
 
     def _get_transformations(self, current_text, indices_to_modify):
+        """
+        回译其实是扁平的, 一次只有一个翻译结果, 但返回的还是数组
+        """
         transformed_texts = []
         current_text = current_text.text
 
@@ -131,6 +135,48 @@ class BackTranslation(SentenceTransformation):
             target_language_text, self.src_model, self.src_tokenizer, self.src_lang
         )
         transformed_texts.append(AttackedText(src_language_text[0]))
+        return transformed_texts
+
+    def _get_batch_transformations(self, batch_current_text: list, batch_indices_to_modify: list):
+        """
+        批量翻译, 或者可以和 _get_transformations 合并在一起, 基本没差, 除了输入
+        batch_current_text: list[AttackedText]
+        batch_indices_to_modify: list[set]
+        这里要返回的 list 的 list, 因为有 batch_size 就会多嵌套一层
+        """
+        # 因为有 batch_size 就会多嵌套一层
+        transformed_texts = []
+        batch_current_text = [x.text for x in batch_current_text]
+
+        if self.chained_back_translation:
+            list_of_target_lang = random.sample(
+                self.target_tokenizer.supported_language_codes,
+                self.chained_back_translation,
+            )
+            for target_lang in list_of_target_lang:
+                target_language_text = self.translate(
+                    batch_current_text,
+                    self.target_model,
+                    self.target_tokenizer,
+                    target_lang,
+                )
+                src_language_text = self.translate(
+                    target_language_text,
+                    self.src_model,
+                    self.src_tokenizer,
+                    self.src_lang,
+                )
+                batch_current_text = src_language_text
+            return [[AttackedText(x)] for x in batch_current_text]
+
+        # 只进行一次回译
+        target_language_text = self.translate(
+            batch_current_text, self.target_model, self.target_tokenizer, self.target_lang
+        )
+        src_language_text = self.translate(
+            target_language_text, self.src_model, self.src_tokenizer, self.src_lang
+        )
+        transformed_texts = [[AttackedText(x)] for x in src_language_text]
         return transformed_texts
 
 
