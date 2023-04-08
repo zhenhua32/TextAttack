@@ -26,7 +26,9 @@ flair.device = device
 
 class AttackedText:
 
-    """A helper class that represents a string that can be attacked.
+    """
+    这个类是基础类, 用于包装文本的, 还是要好好看看.
+    A helper class that represents a string that can be attacked.
 
     Models that take multiple sentences as input separate them by ``SPLIT_TOKEN``.
     Attacks "see" the entire input, joined into one string, without the split token.
@@ -46,6 +48,7 @@ class AttackedText:
     SPLIT_TOKEN = "<SPLIT>"
 
     def __init__(self, text_input, attack_attrs=None):
+        # 将 text_input 转换为有一个 text 作为 key 的 OrderedDict
         # Read in ``text_input`` as a string or OrderedDict.
         if isinstance(text_input, str):
             self._text_input = OrderedDict([("text", text_input)])
@@ -60,7 +63,7 @@ class AttackedText:
         self._words_per_input = None
         self._pos_tags = None
         self._ner_tags = None
-        # Format text inputs.
+        # Format text inputs. 奇怪, 为什么要重新构建一次?
         self._text_input = OrderedDict([(k, v) for k, v in self._text_input.items()])
         if attack_attrs is None:
             self.attack_attrs = dict()
@@ -125,7 +128,9 @@ class AttackedText:
         return self.text[text_idx_start:text_idx_end]
 
     def pos_of_word_index(self, desired_word_idx: int) -> str:
-        """Returns the part-of-speech of the word at index `word_idx`.
+        """
+        返回指定索引的单词的词性标注.
+        Returns the part-of-speech of the word at index `word_idx`.
 
         Uses FLAIR part-of-speech tagger.
 
@@ -552,13 +557,18 @@ class AttackedText:
 
     @property
     def words(self) -> List[str]:
+        """
+        切割成单词数组
+        """
         if not self._words:
             self._words = words_from_text(self.text)
         return self._words
 
     @property
     def text(self) -> str:
-        """Represents full text input.
+        """
+        返回完整的文本输入, 用 \n 分隔.
+        Represents full text input.
 
         Multiply inputs are joined with a line break.
         """
@@ -566,7 +576,7 @@ class AttackedText:
 
     @property
     def num_words(self) -> int:
-        """Returns the number of words in the sequence."""
+        """单词数 Returns the number of words in the sequence."""
         return len(self.words)
 
     @property

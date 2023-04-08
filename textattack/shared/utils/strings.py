@@ -32,9 +32,11 @@ def add_indent(s_, numSpaces):
 
 
 def words_from_text(s, words_to_ignore=[]):
-    """Lowercases a string, removes all non-alphanumeric characters, and splits
+    """
+    将文本分隔成单词, 已经被改造了, 从原始的 s.split() 改成了 bert 里的 BasicTokenizer
+    Lowercases a string, removes all non-alphanumeric characters, and splits
     into words."""
-    # 支持下中文分词, 按字分隔
+    # 支持下中文分词, 按字分隔, 然后变成用空格分隔的
     s = " ".join(basic_tokenizer.tokenize(s))
     # s = " ".join(s.split())
 
@@ -43,13 +45,16 @@ def words_from_text(s, words_to_ignore=[]):
     filter_pattern = homos + """'\\-_\\*@"""
     # TODO: consider whether one should add "." to `exceptions` (and "\." to `filter_pattern`)
     # example "My email address is xxx@yyy.com"
+    # 用正则指定需要保留的
     filter_pattern = f"[\\w{filter_pattern}]+"
     words = []
     for word in s.split():
+        # 重新划分单词
         # Allow apostrophes, hyphens, underscores, asterisks and at signs as long as they don't begin the word.
         word = word.lstrip(exceptions)
         filt = [w.lstrip(exceptions) for w in re.findall(filter_pattern, word)]
         words.extend(filt)
+    # 跳过指定要被忽略的单词
     words = list(filter(lambda w: w not in words_to_ignore + [""], words))
     return words
 
@@ -240,7 +245,8 @@ def zip_flair_result(pred, tag_type="upos-fast"):
     for token in tokens:
         word_list.append(token.text)
         if "pos" in tag_type:
-            pos_list.append(token.annotation_layers["pos"][0]._value)
+            # 不知道是什么特性, Sentence 这个库可能改变了, 以前可以用 pos, 现在要求是 upos
+            pos_list.append(token.annotation_layers["upos"][0]._value)
         elif tag_type == "ner":
             pos_list.append(token.get_label("ner"))
 
